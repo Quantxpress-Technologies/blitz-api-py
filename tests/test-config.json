@@ -1,0 +1,17 @@
+{
+  "Connection": {
+    "AppKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
+    "UserId": "Prateek123",
+    "BaseUrl": "http://uat.bull8.ai:7443",
+    "TestInstruments": ["NSECM|RELIANCE"],
+    "TestInstrumentId": 110010000002885,
+    "TestNiftySymbol": "NSECM|NIFTY",
+    "TestExpiry": "2026-07-07",
+    "InstrumentIds": [110010000002885, 110010002000001, 110010002000002, 110010000011536],
+    "WsTimeoutSeconds": 15,
+    "DemoOrderInstrumentId": 110010000014366,
+    "DemoOrderSymbol": "NSECM|IDEA",
+    "DemoOrderClientId": "Algo123",
+    "DemoOrderPrice": 11
+  }
+}
