@@ -12,7 +12,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["Connection"]
+_conn = _cfg["environments"][_cfg.get("active", "local")]
 _client: MarketDataApiClient | None = None
 
 
@@ -90,15 +90,15 @@ def run():
         InstrumentManager.load()
         print(f"       instruments loaded: {InstrumentManager.count()}")
 
-    # test("GetInstrumentById", test_get_instrument_by_id)
-    # test("GetInstrumentBySymbol", test_get_instrument_by_symbol)
-    # test("GetLTPByIds", test_get_ltp_by_ids)
-    # test("GetLTPByNames", test_get_ltp_by_names)
-    # test("GetOptionChain", test_get_option_chain)
-    # test("GetQuoteByIds", test_get_quote_by_ids)
+    test("GetInstrumentById", test_get_instrument_by_id)
+    test("GetInstrumentBySymbol", test_get_instrument_by_symbol)
+    test("GetLTPByIds", test_get_ltp_by_ids)
+    test("GetLTPByNames", test_get_ltp_by_names)
+    test("GetOptionChain", test_get_option_chain)
+    test("GetQuoteByIds", test_get_quote_by_ids)
     test("GetQuoteByNames", test_get_quote_by_names)
-    # test("GetHistoricalData", test_get_historical_data)
-    # test("InstrumentCount", test_instrument_count)
+    test("GetHistoricalData", test_get_historical_data)
+    test("InstrumentCount", test_instrument_count)
 
     print(f"  PASSED: {passed}   FAILED: {failed}")
     return failed

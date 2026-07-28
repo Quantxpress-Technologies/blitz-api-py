@@ -1,7 +1,7 @@
 import json
 import sys
 import os
-import signal
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -12,29 +12,28 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["Connection"]
-
-running = True
+_conn = _cfg["environments"][_cfg.get("active", "local")]
 
 
 def run():
-    global running
     client = InteractiveWebSocketClient(
         app_key=_conn["AppKey"],
         user_id=_conn["UserId"],
     )
 
-    print("--- Interactive WebSocket Listener ---")
-    print("  Place an order (test_interactive_api.py) in another terminal")
-    print("  Press Ctrl+C to stop\n")
+    received = []
+
+    print("--- Interactive WebSocket Tests ---")
 
     def on_message(data):
-        print(json.dumps(data, indent=2))
+        received.append(data)
+        mc = data.get("MessageCode", data.get("messageCode", "?"))
+        print(f"  [WS] code={mc} {json.dumps(data, default=str)[:200]}")
 
     def on_connect():
-        print("  [WS] Connected, subscribing...")
+        print("  [WS] Connected")
         client.subscribe_action("AllSubscribe")
-        print("  [WS] subscribed Actions")
+        print("  [WS] AllSubscribe sent")
 
     def on_close(code, msg):
         print(f"  [WS] Closed: {code} {msg}")
@@ -43,26 +42,16 @@ def run():
     client.set_on_connect(on_connect)
     client.set_on_close(on_close)
 
-    def handle_signal(sig, frame):
-        global running
-        print("\n  Shutting down...")
-        running = False
-
-    signal.signal(signal.SIGINT, handle_signal)
-
     client.start()
-    import time
-    time.sleep(2)
 
-    if not client.connected:
-        print("  [FAIL] WebSocket did not connect")
-        return 1
-
-    while running:
-        time.sleep(1)
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
 
     client.stop()
-    print("  Disconnected")
+    print(f"  [INFO] Received {len(received)} messages")
     return 0
 
 

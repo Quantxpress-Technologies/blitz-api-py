@@ -15,7 +15,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["Connection"]
+_conn = _cfg["environments"][_cfg.get("active", "local")]
 
 running = True
 

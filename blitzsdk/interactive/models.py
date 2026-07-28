@@ -1,4 +1,7 @@
 import time
+from datetime import datetime, timedelta
+
+from ..common.config import Config
 
 
 class OrderRequest:
@@ -12,9 +15,10 @@ class OrderRequest:
         order_type: str = "LIMIT",
         product: str = "MIS",
         tif: str = "GFD",
-        client_id: str = "Prateek123",
+        client_id: str | None = None,
         disclosed_quantity: int = 0,
         stop_price: float = 0,
+        gtd_date: str | None = None,
     ):
         self.instrument_id = instrument_id
         self.symbol = symbol
@@ -24,9 +28,10 @@ class OrderRequest:
         self.order_type = order_type
         self.product = product
         self.tif = tif
-        self.client_id = client_id
+        self.client_id = client_id or Config.CLIENT_ID
         self.disclosed_quantity = disclosed_quantity
         self.stop_price = stop_price
+        self.gtd_date = gtd_date or (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
     def to_dict(self):
         return {
@@ -42,5 +47,5 @@ class OrderRequest:
             "disclosedQuantity": self.disclosed_quantity,
             "stopPrice": self.stop_price,
             "clientId": self.client_id,
-            "tiF_GTD_Date": "2025-10-10",
+            "tiF_GTD_Date": self.gtd_date,
         }
