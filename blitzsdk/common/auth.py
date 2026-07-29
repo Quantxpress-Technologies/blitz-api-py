@@ -23,7 +23,7 @@ class AuthClient:
         payload = {"appKey": self.app_key, "userId": self.user_id}
 
         logger.info("[AUTH] POST %s", url)
-        logger.info("[AUTH] Payload: %s", json.dumps(payload))
+        logger.debug("[AUTH] Payload: %s", json.dumps(payload))
 
         try:
             response = _SESSION.post(url, data=json.dumps(payload), headers=headers, timeout=10)
@@ -31,11 +31,10 @@ class AuthClient:
             raise AuthenticationError(f"Login failed: {e}")
 
         logger.info("[AUTH] Response: %s", response.status_code)
+        data = response.json()
+        logger.debug("[AUTH] Body: %s", json.dumps(data, default=str)[:500])
         if response.status_code != 200:
             raise AuthenticationError(f"Login failed ({response.status_code}): {response.text}")
-
-        data = response.json()
-        logger.info("[AUTH] Body: %s", json.dumps(data, default=str)[:500])
         if data.get("status") != "success":
             raise AuthenticationError(f"Login failed: {data.get('message', 'unknown')}")
 

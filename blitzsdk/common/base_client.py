@@ -17,22 +17,22 @@ class BaseApiClient:
     def __init__(self, app_key: str, user_id: str, base_url: str | None = None, auth: AuthClient | None = None):
         self.auth = auth or AuthClient(app_key, user_id)
         self.token = self.auth.get_token()
-        self.base_url = (base_url or self._default_base_url()).rstrip("/")
+        self.base_url = (base_url or self.default_base_url()).rstrip("/")
 
-    def _default_base_url(self) -> str:
+    def default_base_url(self) -> str:
         return ""
 
-    def _ensure_logged_in(self):
+    def ensure_logged_in(self):
         self.token = self.auth.get_token()
 
-    def _headers(self):
+    def headers(self):
         return {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
             "Accept": "*/*",
         }
 
-    def _request(self, method: str, endpoint: str, payload=None, params=None, base_url: str | None = None, retries=0):
+    def request(self, method: str, endpoint: str, payload=None, params=None, base_url: str | None = None, retries=0):
         url = f"{(base_url or self.base_url)}/{endpoint.lstrip('/')}"
         logger.info("[REQ] %s %s", method, url)
         if payload:
@@ -43,7 +43,7 @@ class BaseApiClient:
             response = _SESSION.request(
                 method, url,
                 data=json.dumps(payload) if payload is not None else None,
-                params=params, headers=self._headers(), timeout=15
+                params=params, headers=self.headers(), timeout=15
             )
         except requests.exceptions.ConnectionError as e:
             logger.error("[REQ] ConnectionError: %s", e)
@@ -58,8 +58,8 @@ class BaseApiClient:
 
         if response.status_code == 401 and retries < 1:
             logger.warning("Token expired, re-logging in...")
-            self._ensure_logged_in()
-            return self._request(method, endpoint, payload, params, base_url, retries + 1)
+            self.ensure_logged_in()
+            return self.request(method, endpoint, payload, params, base_url, retries + 1)
 
         if response.status_code not in (200, 201):
             text = response.text[:500]

@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import signal
+import threading
 
 from google.protobuf.json_format import MessageToJson
 
@@ -18,10 +19,12 @@ with open(CONFIG_PATH) as f:
 _conn = _cfg["environments"][_cfg.get("active", "local")]
 
 running = True
+connect_count = 0
+close_events = []
 
 
 def run():
-    global running
+    global running, connect_count, close_events
     print("Initializing MarketDataWebSocketClient...")
 
     ws = MarketDataWebSocketClient(
@@ -30,7 +33,6 @@ def run():
     )
 
     instrument_ids = _conn.get("InstrumentIds", [110010002000001, 110010000002885])
-    timeout_sec = _conn.get("WsTimeoutSeconds", 15)
 
     print("--- Market Data WebSocket Tests ---")
 
@@ -38,10 +40,17 @@ def run():
         print(f"New tick data received:{MessageToJson(data)}")
 
     def on_connect():
-        print("  [WS] Connected")
+        global connect_count
+        connect_count += 1
+        print(f"  [WS] Connected (connect_count={connect_count})")
+
+    def on_close(code, msg):
+        close_events.append((code, msg))
+        print(f"  [WS] Closed: code={code} msg={msg}")
 
     ws.set_on_message(on_message)
     ws.set_on_connect(on_connect)
+    ws.set_on_close(on_close)
 
     def handle_signal(sig, frame):
         global running
@@ -59,23 +68,20 @@ def run():
     ws.subscribe(instrument_ids)
     print(f"  [PASS] Subscribed to {instrument_ids}")
 
-    print(f"  Listening for {timeout_sec}s (press Ctrl+C to stop early)...")
+    print("  Listening (press Ctrl+C to stop)...")
     sys.stdout.flush()
 
-    start = time.time()
-    while running and (time.time() - start) < timeout_sec:
-        elapsed = int(time.time() - start)
-        if elapsed > 0 and elapsed % 5 == 0:
-            print(f"  ... {timeout_sec - elapsed}s remaining")
-            sys.stdout.flush()
-        time.sleep(1)
-
-    print("  Stopping WebSocket...")
-    ws.stop()
-    print("  [PASS] WebSocket disconnected cleanly")
-    print("  PASSED: 3   FAILED: 0")
+    try:
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        ws.stop()
+        print(f"  [INFO] Connect count: {connect_count}")
+        print(f"  [INFO] Close events: {len(close_events)}")
+        print("  [PASS] WebSocket test completed")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(run())
+    run()

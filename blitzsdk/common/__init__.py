@@ -8,10 +8,10 @@ import websocket._http as _ws_http
 import websocket._handshake as _ws_handshake
 import websocket._abnf as _ws_abnf
 
-_original_validate = _ws_abnf.ABNF.validate
+original_validate = _ws_abnf.ABNF.validate
 
 
-def _patched_validate(self, skip_utf8_validation=False):
+def patched_validate(self, skip_utf8_validation=False):
     if self.opcode not in _ws_abnf.ABNF.OPCODES:
         raise _ws_abnf.WebSocketProtocolException("Invalid opcode %r", self.opcode)
     if self.opcode == _ws_abnf.ABNF.OPCODE_PING and not self.fin:
@@ -29,15 +29,14 @@ def _patched_validate(self, skip_utf8_validation=False):
             raise _ws_abnf.WebSocketProtocolException("Invalid close opcode %r", code)
 
 
-def _patch_websocket_read_headers():
-    def _patched_read_headers(sock):
+def patch_websocket_read_headers():
+    def patched_read_headers(sock):
         status = None
         status_message = None
         headers = {}
         last_key = None
 
-        while True:
-            raw = _ws_http.recv_line(sock).decode("utf-8")
+        for raw in iter(lambda: _ws_http.recv_line(sock).decode("utf-8"), ""):
             stripped = raw.strip()
             if not stripped:
                 break
@@ -61,9 +60,9 @@ def _patch_websocket_read_headers():
 
         return status, headers, status_message
 
-    _ws_http.read_headers = _patched_read_headers
-    _ws_handshake.read_headers = _patched_read_headers
+    _ws_http.read_headers = patched_read_headers
+    _ws_handshake.read_headers = patched_read_headers
 
 
-_patch_websocket_read_headers()
-_ws_abnf.ABNF.validate = _patched_validate
+patch_websocket_read_headers()
+_ws_abnf.ABNF.validate = patched_validate

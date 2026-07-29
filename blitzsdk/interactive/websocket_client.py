@@ -2,7 +2,6 @@ import json
 import logging
 import ssl
 import threading
-import time
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -12,17 +11,15 @@ from websocket._http import recv_line
 from websocket._logging import trace
 from websocket._exceptions import WebSocketException
 
-def _patch_read_headers():
+
+def patch_read_headers():
     def patched_read_headers(sock):
         status = None
         status_message = None
         headers = {}
         last_key = None
         trace("--- response header ---")
-        while True:
-            raw = recv_line(sock)
-            if not raw:
-                break
+        for raw in iter(lambda: recv_line(sock), b""):
             if raw in (b"\r\n", b"\n"):
                 break
             decoded = raw.decode("utf-8")
@@ -55,7 +52,8 @@ def _patch_read_headers():
     _ws_http.read_headers = patched_read_headers
     _ws_handshake.read_headers = patched_read_headers
 
-_patch_read_headers()
+
+patch_read_headers()
 
 import websocket
 
@@ -86,109 +84,105 @@ class InteractiveWebSocketClient(BaseWebSocketClient):
         self.ws_url = (ws_url or Config.WS_URL) + "?" + urlencode({"access_token": self.token})
         self._subscribed_actions: set[str] = set()
         self._subscribed_instruments: set[int] = set()
-        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._heartbeat_timer: Optional[threading.Timer] = None
         self._ping_interval = 30
 
-    def _connect_impl(self):
+    def connect_impl(self):
         self.ws = websocket.WebSocketApp(
             self.ws_url,
-            on_open=self._on_open,
-            on_message=self._on_message,
-            on_error=self._on_error,
-            on_close=self._on_close,
+            on_open=self.on_open,
+            on_message=self.on_message,
+            on_error=self.on_error,
+            on_close=self.on_close,
         )
         self.ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
 
-    def _on_open(self, ws):
+    def on_open(self, ws):
         logger.info("[I-WS] Connected")
-        self.connected = True
-        self._on_connected()
-        if not self._heartbeat_thread or not self._heartbeat_thread.is_alive():
-            self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
-            self._heartbeat_thread.start()
+        self.on_connected()
+        self.start_heartbeat()
 
-    def _on_message(self, ws, message):
+    def on_message(self, ws, message):
         if message == "ping":
             return
         try:
             msg = json.loads(message)
             mc = msg.get("MessageCode", msg.get("messageCode", "?"))
-            logger.info("[I-WS] RECV code=%s %s", mc, json.dumps(msg, default=str)[:2000])
-            self._on_message_received(msg)
+            logger.debug("[I-WS] RECV code=%s %s", mc, json.dumps(msg, default=str)[:2000])
+            self.on_message_received(msg)
         except json.JSONDecodeError:
-            logger.warning("[I-WS] Non-JSON: %s", message[:200])
+            logger.warning("Non-JSON message: %s", message[:200])
 
-    def _on_error(self, ws, error):
-        logger.error(f"[I-WS] Error: {error}")
+    def on_error(self, ws, error):
+        logger.error("Error: %s", error)
         if self.on_error_callback:
             self.on_error_callback(error)
 
-    def _on_close(self, ws, close_status_code, close_msg):
-        logger.warning(f"[I-WS] Closed: {close_status_code} {close_msg}")
-        self.connected = False
-        if self.on_close_callback:
-            self.on_close_callback(close_status_code, close_msg)
+    def on_close(self, ws, close_status_code, close_msg):
+        self.stop_heartbeat()
+        self.on_closed(close_status_code, close_msg)
 
-    def _heartbeat_loop(self):
-        while self.connected and not self._closing:
-            time.sleep(self._ping_interval)
+    def start_heartbeat(self):
+        self.stop_heartbeat()
+        self._heartbeat_timer = threading.Timer(self._ping_interval, self.send_heartbeat)
+        self._heartbeat_timer.daemon = True
+        self._heartbeat_timer.start()
+
+    def stop_heartbeat(self):
+        if self._heartbeat_timer:
+            self._heartbeat_timer.cancel()
+            self._heartbeat_timer = None
+
+    def send_heartbeat(self):
+        if self.connected and not self._closing:
             if self.ws and self.ws.sock and self.ws.sock.connected:
                 try:
                     self.ws.send("ping")
                 except Exception:
                     pass
+            if self.connected and not self._closing:
+                self.start_heartbeat()
 
-    def _resubscribe(self):
+    def resubscribe(self):
         with self._lock:
             acts = list(self._subscribed_actions)
             insts = list(self._subscribed_instruments)
         for a in acts:
-            self._send_json({"action": a})
+            self.send_json({"action": a})
         if insts:
-            self._send_json({"action": "subscribe", "instrumentIds": insts})
+            self.send_json({"action": "subscribe", "instrumentIds": insts})
 
-    def _send_json(self, data: dict):
+    def send_json(self, data: dict):
         if self.ws and self.ws.sock and self.ws.sock.connected:
             try:
                 payload = json.dumps(data)
                 self.ws.send(payload)
-                logger.info(f"[I-WS] SENT: {json.dumps(data)}")
+                logger.debug("[I-WS] SENT: %s", json.dumps(data))
             except Exception as e:
-                logger.error(f"[I-WS] send error: {e}")
+                logger.error("send error: %s", e)
 
     def subscribe(self, instrument_ids: list[int]):
         with self._lock:
             for iid in instrument_ids:
                 self._subscribed_instruments.add(iid)
-        self._send_json({"action": "subscribe", "instrumentIds": instrument_ids})
+        self.send_json({"action": "subscribe", "instrumentIds": instrument_ids})
 
     def unsubscribe(self, instrument_ids: list[int]):
         with self._lock:
             for iid in instrument_ids:
                 self._subscribed_instruments.discard(iid)
-        self._send_json({"action": "unsubscribe", "instrumentIds": instrument_ids})
+        self.send_json({"action": "unsubscribe", "instrumentIds": instrument_ids})
 
     def subscribe_action(self, action: str):
         if action not in ACTION_CODES:
-            logger.warning(f"[I-WS] Unknown action: {action}")
+            logger.warning("Unknown action: %s", action)
             return
         with self._lock:
             self._subscribed_actions.add(action)
-        self._send_json({"action": action})
+        self.send_json({"action": action})
 
     def unsubscribe_action(self, action: str):
         unsub = action.replace("Subscribe", "Unsubscribe")
         with self._lock:
             self._subscribed_actions.discard(action)
-        self._send_json({"action": unsub})
-
-    def stop(self):
-        self._closing = True
-        self.reconnect = False
-        self.connected = False
-        if self.ws:
-            try:
-                self.ws.close()
-            except Exception:
-                pass
-            self.ws = None
+        self.send_json({"action": unsub})

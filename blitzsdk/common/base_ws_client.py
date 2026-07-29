@@ -1,7 +1,5 @@
-import json
 import logging
 import threading
-import time
 from typing import Optional, Callable
 
 from .auth import AuthClient
@@ -19,6 +17,7 @@ class BaseWebSocketClient:
         self._closing = False
         self.connected = False
         self._lock = threading.Lock()
+        self._reconnect_timer: Optional[threading.Timer] = None
         self.on_message_callback: Optional[Callable] = None
         self.on_connect_callback: Optional[Callable] = None
         self.on_close_callback: Optional[Callable] = None
@@ -39,48 +38,56 @@ class BaseWebSocketClient:
     def start(self):
         self.reconnect = True
         self._closing = False
-        threading.Thread(target=self._run, daemon=True).start()
+        threading.Thread(target=self.run, daemon=True).start()
 
-    def _run(self):
-        while self.reconnect and not self._closing:
-            try:
-                self._connect_impl()
-            except Exception as e:
-                logger.error(f"[WS] Error: {e}")
-                if self.on_error_callback:
-                    self.on_error_callback(e)
-            if self.reconnect and not self._closing:
-                time.sleep(5)
+    def schedule_reconnect(self):
+        if self.reconnect and not self._closing:
+            self._reconnect_timer = threading.Timer(5.0, self.start)
+            self._reconnect_timer.daemon = True
+            self._reconnect_timer.start()
 
-    def _connect_impl(self):
+    def run(self):
+        try:
+            self.connect_impl()
+        except Exception as e:
+            logger.error("[WS] Error: %s", e)
+            if self.on_error_callback:
+                self.on_error_callback(e)
+            self.schedule_reconnect()
+
+    def connect_impl(self):
         raise NotImplementedError
 
-    def _on_connected(self):
+    def on_connected(self):
         self.connected = True
         logger.info("[WS] Connected")
-        self._resubscribe()
+        self.resubscribe()
         if self.on_connect_callback:
             self.on_connect_callback()
 
-    def _on_message_received(self, msg):
+    def on_message_received(self, msg):
         if self.on_message_callback:
             self.on_message_callback(msg)
 
-    def _on_closed(self, code, msg):
+    def on_closed(self, code, msg):
         self.connected = False
         if self.on_close_callback:
             self.on_close_callback(code, msg)
+        self.schedule_reconnect()
 
-    def _resubscribe(self):
+    def resubscribe(self):
         raise NotImplementedError
 
-    def _send_json(self, data: dict):
+    def send_json(self, data: dict):
         raise NotImplementedError
 
     def stop(self):
         self._closing = True
         self.reconnect = False
         self.connected = False
+        if self._reconnect_timer:
+            self._reconnect_timer.cancel()
+            self._reconnect_timer = None
         if self.ws:
             try:
                 self.ws.close()

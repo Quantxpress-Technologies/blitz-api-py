@@ -2,7 +2,7 @@ import json
 import os
 
 
-def _find_config():
+def find_config():
     env_path = os.getenv("BLITZ_CONFIG_PATH")
     if env_path:
         abs_path = os.path.abspath(env_path)
@@ -16,7 +16,7 @@ def _find_config():
     return None
 
 
-_config_path = _find_config()
+_config_path = find_config()
 _conn = {}
 if _config_path:
     with open(_config_path, encoding="utf-8") as f:
@@ -26,18 +26,18 @@ if _config_path:
     _conn = _envs.get(_active, {})
 
 
-def _get(key, env_var):
+def get_config(key, env_var):
     return os.getenv(env_var) or _conn.get(key, "")
 
 
 class Config:
-    AUTH_BASE_URL = _get("AuthBaseUrl", "BLITZ_AUTH_URL")
-    API_BASE_URL = _get("InteractiveApiUrl", "BLITZ_API_URL")
-    WS_URL = _get("InteractiveWsUrl", "BLITZ_WS_URL")
-    MD_API_URL = _get("MarketDataApiUrl", "BLITZ_MD_API_URL")
-    MD_WS_URL = _get("MarketDataWsUrl", "BLITZ_MD_WS_URL")
-    INSTRUMENT_URL = _get("InstrumentGzUrl", "BLITZ_INSTRUMENT_URL")
+    AUTH_BASE_URL = get_config("AuthBaseUrl", "BLITZ_AUTH_URL")
+    API_BASE_URL = get_config("InteractiveApiUrl", "BLITZ_API_URL")
+    WS_URL = get_config("InteractiveWsUrl", "BLITZ_WS_URL")
+    MD_API_URL = get_config("MarketDataApiUrl", "BLITZ_MD_API_URL")
+    MD_WS_URL = get_config("MarketDataWsUrl", "BLITZ_MD_WS_URL")
+    INSTRUMENT_URL = get_config("InstrumentGzUrl", "BLITZ_INSTRUMENT_URL")
 
-    APP_KEY = _get("AppKey", "BLITZ_APP_KEY")
-    USER_ID = _get("UserId", "BLITZ_USER_ID")
-    CLIENT_ID = _get("ClientId", "BLITZ_CLIENT_ID")
+    APP_KEY = get_config("AppKey", "BLITZ_APP_KEY")
+    USER_ID = get_config("UserId", "BLITZ_USER_ID")
+    CLIENT_ID = get_config("ClientId", "BLITZ_CLIENT_ID")

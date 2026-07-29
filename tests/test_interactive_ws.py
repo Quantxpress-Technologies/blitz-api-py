@@ -1,7 +1,7 @@
 import json
 import sys
 import os
-import time
+import threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -14,8 +14,12 @@ with open(CONFIG_PATH) as f:
 
 _conn = _cfg["environments"][_cfg.get("active", "local")]
 
+connect_count = 0
+close_events = []
+
 
 def run():
+    global connect_count, close_events
     client = InteractiveWebSocketClient(
         app_key=_conn["AppKey"],
         user_id=_conn["UserId"],
@@ -31,12 +35,15 @@ def run():
         print(f"  [WS] code={mc} {json.dumps(data, default=str)[:200]}")
 
     def on_connect():
-        print("  [WS] Connected")
+        global connect_count
+        connect_count += 1
+        print(f"  [WS] Connected (connect_count={connect_count})")
         client.subscribe_action("AllSubscribe")
         print("  [WS] AllSubscribe sent")
 
     def on_close(code, msg):
-        print(f"  [WS] Closed: {code} {msg}")
+        close_events.append((code, msg))
+        print(f"  [WS] Closed: code={code} msg={msg}")
 
     client.set_on_message(on_message)
     client.set_on_connect(on_connect)
@@ -45,13 +52,15 @@ def run():
     client.start()
 
     try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-
-    client.stop()
-    print(f"  [INFO] Received {len(received)} messages")
+        try:
+            threading.Event().wait()
+        except KeyboardInterrupt:
+            pass
+    finally:
+        client.stop()
+        print(f"  [INFO] Received {len(received)} messages")
+        print(f"  [INFO] Connect count: {connect_count}")
+        print(f"  [INFO] Close events: {len(close_events)}")
     return 0
 
 
