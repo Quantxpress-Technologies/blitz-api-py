@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -5,5 +6,28 @@ __pycache__/
 dist/
 build/
 *.egg
+
+# Logs
 logs/
 *.log
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+venv/
+.venv/
+
+# Build artifacts
+*.exe
+*.dll
+*.pdb

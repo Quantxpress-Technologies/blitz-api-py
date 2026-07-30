@@ -2,9 +2,9 @@
   "active": "bull8",
   "environments": {
     "bull8": {
-      "AppKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
-      "UserId": "Prateek123",
-      "ClientId": "Prateek123",
+      "AppKey": "Bq9zGJvNrW8o6birDPY2E3rXSW2TMIzPk7RE5I1VRs",
+      "UserId": "Sanajy",
+      "ClientId": "Sanajy",
       "BaseUrl": "https://uat.bull8.ai:7443",
       "AuthBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
       "InteractiveApiUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
@@ -15,7 +15,7 @@
       "TestInstruments": ["NSECM|RELIANCE"],
       "TestInstrumentId": 110010000002885,
       "TestNiftySymbol": "NSECM|NIFTY",
-      "TestExpiry": "2026-07-07",
+      "TestExpiry": "2026-09-01",
       "InstrumentIds": [262090000066283,110010000002841],
       "WsTimeoutSeconds": 15,
       "DemoOrderInstrumentId": 110010000014366,

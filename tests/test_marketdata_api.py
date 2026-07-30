@@ -1,8 +1,19 @@
 import json
 import sys
 import os
+import logging
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+_LOG_FILE = os.path.join(os.path.dirname(__file__), "marketdata_api.log")
+logging.basicConfig(
+    filename=_LOG_FILE,
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    filemode="w",
+)
+_log = logging.getLogger(__name__)
+print(f"Logging to {_LOG_FILE}")
 
 from blitzsdk import MarketDataApiClient
 from blitzsdk.marketdata.instrument_manager import InstrumentManager
@@ -26,6 +37,8 @@ def _get_client():
 def _pp(data):
     raw = data.get("response_text", "")
     js = data.get("response_json")
+    _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
+    _log.info("response_json=%s", json.dumps(js, indent=2, default=str) if js is not None else raw)
     print(f"  status={data.get('status_code')} raw=({len(raw)} chars)")
     if js is not None:
         print(json.dumps(js, indent=2))

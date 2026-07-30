@@ -2,8 +2,19 @@ import json
 import sys
 import os
 import time
+import logging
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+_LOG_FILE = os.path.join(os.path.dirname(__file__), "interactive_api.log")
+logging.basicConfig(
+    filename=_LOG_FILE,
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    filemode="w",
+)
+_log = logging.getLogger(__name__)
+print(f"Logging to {_LOG_FILE}")
 
 from blitzsdk import InteractiveApiClient, MarketDataApiClient
 from blitzsdk.interactive.models import OrderRequest
@@ -27,6 +38,8 @@ def _get_client():
 def _pp(data):
     raw = data.get("response_text", "")
     js = data.get("response_json")
+    _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
+    _log.info("response_json=%s", json.dumps(js, indent=2, default=str) if js is not None else raw)
     print(f"  status={data.get('status_code')} raw=({len(raw)} chars)")
     if js is not None:
         print(json.dumps(js, indent=2))
@@ -175,7 +188,7 @@ def run():
             "Instruments": [{
                 "ExchangeSegment": "NSEFO",
                 "InstrumentName": "NIFTY10FEB2625550PE",
-                "Action": "BUY",
+                "Action": "ENTERLONG",
                 "Lot": "27",
                 "TimeStamp": time.strftime("%d-%m-%Y %H:%M:%S"),
                 "InfoText": "Test signal",
@@ -199,19 +212,19 @@ def run():
         r = md_client.get_historical_data(instrument=_conn["DemoOrderSymbol"], interval="D")
         _pp(r)
 
-    test("GetOrders", test_get_orders)
-    test("GetOpenOrders", test_get_open_orders)
-    test("GetPositions", test_get_positions)
-    test("GetTrades", test_get_trades)
-    test("PlaceOrder", test_place_order)
-    test("GetOrderByBlitzId", test_get_order_by_blitz_id)
-    test("ModifyOrder", test_modify_order)
-    test("CancelOrder", test_cancel_order)
+    # test("GetOrders", test_get_orders)
+    # test("GetOpenOrders", test_get_open_orders)
+    # test("GetPositions", test_get_positions)
+    # test("GetTrades", test_get_trades)
+    # test("PlaceOrder", test_place_order)
+    # test("GetOrderByBlitzId", test_get_order_by_blitz_id)
+    # test("ModifyOrder", test_modify_order)
+    # test("CancelOrder", test_cancel_order)
     test("SendSignals", test_send_signals)
-    test("GetLTP", test_get_ltp)
-    test("GetQuote", test_get_quote)
-    test("GetOptionChain", test_get_option_chain)
-    test("GetHistoricalData", test_get_historical_data)
+    # test("GetLTP", test_get_ltp)
+    # test("GetQuote", test_get_quote)
+    # test("GetOptionChain", test_get_option_chain)
+    # test("GetHistoricalData", test_get_historical_data)
 
     print(f"  PASSED: {passed}   FAILED: {failed}")
     return failed

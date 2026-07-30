@@ -1,254 +1,240 @@
 # BlitzConnect Python SDK
 
-Python SDK for the BlitzConnect trading platform — Interactive (order/position management) and Market Data APIs.
+[![PyPI](https://img.shields.io/badge/pypi-v0.1.0-blue)](https://pypi.org/project/blitzsdk/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-green)]()
 
-## Installation
+The official Python client for communicating with the [BlitzConnect API](https://quantxpress.com/docs/blitz-api).
+
+BlitzConnect is a set of REST-like APIs that expose many capabilities required to build a complete investment and trading platform. Execute orders in real time, manage user portfolio, stream live market data (WebSockets), and more, with the simple HTTP API collection.
+
+[QuantXpress](https://quantxpress.com) (c) 2024. Licensed under the MIT License.
+
+## Documentation
+
+- [BlitzConnect API Reference](https://quantxpress.com/docs/blitz-api/sdk/blitzconnect-api/)
+- [Interactive SDK](https://quantxpress.com/docs/blitz-api/sdk/blitzconnect-api/orders/)
+- [Market Data SDK](https://quantxpress.com/docs/blitz-api/sdk/blitzconnect-api/ltp/)
+- [WebSocket Streaming](https://quantxpress.com/docs/blitz-api/sdk/blitzconnect-api/websocket/)
+- [Response structure & Errors](https://quantxpress.com/docs/blitz-api/sdk/blitzconnect/response-structure/)
+- [REST API Reference](https://quantxpress.com/docs/blitz-api/api/API_Structure/)
+
+## Installing the client
 
 ```bash
-pip install -e C:\QuantXpress\QX.BlitzSDK
+pip install blitzsdk
 ```
 
 Requires Python 3.10+.
 
-## Configuration
+## Interactive API usage
 
-**Option 1: Environment variables**
-
-| Variable | Default |
-|---|---|
-| `BLITZ_AUTH_URL` | `http://uat.bull8.ai:7443/api_gateway/v1` |
-| `BLITZ_API_URL` | `http://uat.bull8.ai:7443/api_interactive/api/v1` |
-| `BLITZ_WS_URL` | `ws://uat.bull8.ai:7443/api_interactive/ws` |
-| `BLITZ_MD_API_URL` | `http://uat.bull8.ai:7443/md-api` |
-| `BLITZ_MD_WS_URL` | `ws://uat.bull8.ai:7443/md-streaming/ws` |
-
-**Option 2: Pass `app_key` and `user_id`** to any client (recommended). Authentication is automatic.
-
-## Interactive API
-
-### Get orders
 ```python
-from blitzsdk import InteractiveApiClient
-
-client = InteractiveApiClient(app_key="your_app_key", user_id="your_user_id")
-orders = client.get_orders()
-open_orders = client.get_open_orders()
-```
-
-### Place an order
-```python
+import logging
 from blitzsdk import InteractiveApiClient
 from blitzsdk.interactive.models import OrderRequest
 
-client = InteractiveApiClient(app_key="your_app_key", user_id="your_user_id")
-order = OrderRequest(
-    instrument_id=110010000014366,
-    symbol="NSECM|IDEA",
-    quantity=1,
-    price=11,
-    order_side="BUY",
-    order_type="LIMIT",
-    tif="GFD",
-    product="MIS",
-    client_id="your_client_id",
-)
-resp = client.place_order(order)
-print(resp["data"]["blitzOrderId"])
-```
+logging.basicConfig(level=logging.DEBUG)
 
-### Modify / Cancel
-```python
+# Create the client (login happens automatically)
+client = InteractiveApiClient(app_key="your_api_key", user_id="your_user_id")
+
+# Place an order
+try:
+    order = OrderRequest(
+        instrument_id=110010000014366,
+        symbol="NSECM|IDEA",
+        quantity=1,
+        price=11,
+        order_side="BUY",
+        order_type="LIMIT",
+        product="MIS",
+        tif="GFD",
+        client_id="your_client_id",
+    )
+    resp = client.place_order(order)
+    blitz_id = resp["response_json"]["data"]["blitzOrderId"]
+    logging.info("Order placed. ID is: {}".format(blitz_id))
+except Exception as e:
+    logging.info("Order placement failed: {}".format(e))
+
+# Modify / Cancel
 client.modify_order({
-    "blitzOrderId": 12345,
-    "modifiedOrderQuantity": 2,
-    "price": 10.5,
-    "orderType": "LIMIT",
-    "instrumentId": 110010000014366,
-    "symbol": "NSECM|IDEA",
-    "disclosedQuantity": 0,
-    "stopPrice": 0,
-    "tif": "GFD",
-})
-
-client.cancel_order(instrument_id=110010000014366, blitz_order_id=12345)
-```
-
-### Positions, Trades, Signals
-```python
-positions = client.get_positions()
-trades = client.get_trades()
-client.send_signals([{...}])
-```
-
-### OrderRequest fields
-
-| Parameter | Default |
-|---|---|
-| `instrument_id` | (required) |
-| `symbol` | (required) |
-| `quantity` | `1` |
-| `price` | `11` |
-| `order_side` | `"BUY"` |
-| `order_type` | `"LIMIT"` |
-| `product` | `"MIS"` |
-| `tif` | `"GFD"` |
-| `client_id` | `"Prateek123"` |
-| `disclosed_quantity` | `0` |
-| `stop_price` | `0` |
-
-## Interactive WebSocket
-
-Receive real-time order updates (message code 70000), statistics (50000), strategy stats (80000), and instrument stats (90000).
-
-```python
-from blitzsdk import InteractiveWebSocketClient
-
-client = InteractiveWebSocketClient(app_key="your_app_key", user_id="your_user_id")
-
-def on_message(data):
-    dd = data.get("decodedData", {})
-    print(data)  # full JSON with decodedData
-
-def on_connect():
-    print("Connected")
-    client.subscribe_action("AllSubscribe")
-
-client.set_on_message(on_message)
-client.set_on_connect(on_connect)
-client.start()
-
-# Keep running
-import time
-while True:
-    time.sleep(1)
-```
-
-**Subscribe to specific categories:**
-
-| Action | Code | Description |
-|---|---|---|
-| `OrderSubscribe` | 70000 | Order updates |
-| `StatisticSubscribe` | 50000 | Account statistics |
-| `StrategyStatisticSubscribe` | 80000 | Strategy-level statistics |
-| `InstrumentStatisticSubscribe` | 90000 | Instrument-level statistics |
-| `AllSubscribe` | all | All of the above |
-
-The server only sends order events when the exchange acknowledges the order (states like "New", "Cancelled", "Complete"). Off-market orders stay in "Pending New" and won't generate WS events.
-
-### WS message format
-
-```json
-{
-  "messageCode": 70000,
-  "entityId": "f684bae4-...",
-  "decodedData": {
-    "BlitzOrderId": 24091124420000098,
-    "OrderStatus": "Cancelled",
-    "OrderSide": "Buy",
-    "OrderQuantity": 1,
-    "OrderPrice": 10,
-    "InstrumentName": "IDEA",
-    "ExchangeSegment": "NSECM",
+    "BlitzOrderId": 12345,
+    "ModifiedOrderQuantity": 2,
+    "Price": 10.5,
+    "OrderType": "LIMIT",
     "InstrumentId": 110010000014366,
-    "CorrelationOrderId": "order_...",
-    "ExchangeOrderId": "",
-    "OrderType": "Limit",
-    "TimeInForce": "GFD",
-    ...
-  }
-}
+    "Symbol": "NSECM|IDEA",
+    "DisclosedQuantity": 0,
+    "StopPrice": 0,
+    "TIF": "GFD",
+})
+client.cancel_order(instrument_id=110010000014366, blitz_order_id=12345)
+
+# Fetch orders, positions, trades
+client.get_orders()
+client.get_open_orders()
+client.get_order_by_blitz_id(24091124420000098)
+client.get_positions()
+client.get_trades()
+client.get_statistics()
+
+# Send signals
+signals = []
+signals.append({
+    "ID": "abc",
+    "SourceStrategy": "Bull8.DiamondX1",
+    "DestinationStrategy": dest,
+    "SL": "3000",
+    "SourceSID": f"Bull8_SINGLE_{dest}",
+    "InstanceRunningMode": "Started",
+    "GlobalAction": "Signal",
+    "Instruments": [
+        {
+            "ExchangeSegment": "NSEFO",
+            "InstrumentName": instrument_name1,
+            "Action": "BUY",
+            "Lot": "1",
+            "TimeStamp": base_time.strftime("%d-%m-%Y %H:%M:%S"),
+            "InfoText": f"{option_type1} Entry Signal {strike1}",
+        }
+    ],
+})
+resp = client.send_signals(signals)
 ```
 
-### WebSocket lifecycle
-
-| Method | Description |
-|---|---|
-| `start()` | Connect (auto-reconnect on disconnect) |
-| `stop()` | Disconnect |
-| `subscribe_action(name)` | Subscribe to a message category |
-| `unsubscribe_action(name)` | Unsubscribe |
-
-## Market Data API
+## Market Data API usage
 
 ```python
+import logging
 from blitzsdk import MarketDataApiClient
 
-client = MarketDataApiClient(app_key="your_app_key", user_id="your_user_id")
+logging.basicConfig(level=logging.DEBUG)
+
+# Create the client
+md = MarketDataApiClient(app_key="your_api_key", user_id="your_user_id")
 
 # Instrument lookup
-client.get_instrument_by_id(110010000002885)
-client.get_instrument_by_symbol("NSECM|RELIANCE")
+md.get_instrument_by_id(110010000002885)
+md.get_instrument_by_symbol("NSECM|RELIANCE")
 
-# Market data
-client.get_ltp([110010000002885])
-client.get_quote([110010000002885])
-client.get_option_chain("NIFTY", "2026-07-07")
-client.get_historical_data("RELIANCE", "D")
+# Live market data
+md.get_ltp([110010000002885])
+md.get_quote([110010000002885])
+md.get_option_chain("NIFTY", "2026-07-30")
+md.get_historical_data("RELIANCE", "D")
 ```
 
-## Market Data WebSocket
+Refer to the [BlitzConnect API Reference](https://quantxpress.com/docs/blitz-api/sdk/blitzconnect-api/) for the complete list of supported methods.
 
-Live streaming of index/equity data via protobuf.
+## Interactive WebSocket usage
 
 ```python
-from blitzsdk import MarketDataWebSocketClient
+import logging
+from blitzsdk import InteractiveWebSocketClient
 
-ws = MarketDataWebSocketClient(app_key="your_app_key", user_id="your_user_id")
+logging.basicConfig(level=logging.DEBUG)
 
-def on_message(protobuf_msg):
-    from google.protobuf.json_format import MessageToJson
-    print(MessageToJson(protobuf_msg))
+# Initialise
+ws = InteractiveWebSocketClient(app_key="your_api_key", user_id="your_user_id")
+
+def on_message(data):
+    # Callback to receive order and statistics updates.
+    mc = data.get("MessageCode", data.get("messageCode", "?"))
+    logging.debug("Code: {} Data: {}".format(mc, data))
 
 def on_connect():
-    ws.subscribe([110010002000001, 110010000002885])  # NIFTY + RELIANCE
+    # Callback on successful connect.
+    # Subscribe to all order and statistics updates.
+    ws.subscribe_action("AllSubscribe")
 
+def on_close(code, msg):
+    # On connection close, stop reconnection.
+    ws.stop()
+
+# Assign the callbacks.
 ws.set_on_message(on_message)
 ws.set_on_connect(on_connect)
+ws.set_on_close(on_close)
+
+# Start the WebSocket (auto-reconnect on disconnect).
 ws.start()
 ```
 
-> **Note:** Subscribe to at least 2 instrument IDs — single-instrument subscribe may cause disconnection.
+## Market Data WebSocket usage
+
+Market data ticks are streamed as **protobuf** (Protocol Buffers) — a compact binary format by Google. The SDK decodes them automatically:
+
+```python
+# Inside MarketDataWebSocketClient.on_message():
+decoded = base64.b64decode(message)          # decode base64 string
+md = marketdata_pb2.MarketDataMessageBase()  # create protobuf object
+md.ParseFromString(decoded)                  # parse binary into protobuf
+self.on_message_received(md)                 # pass decoded object
+```
+
+Use `MessageToJson()` to view the decoded protobuf object as JSON:
+
+```python
+import logging
+from blitzsdk import MarketDataWebSocketClient
+from google.protobuf.json_format import MessageToJson
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Initialise
+kws = MarketDataWebSocketClient(app_key="your_api_key", user_id="your_user_id")
+
+def on_ticks(data):
+    # data is a decoded protobuf MarketDataMessageBase object
+    # Convert to JSON for easy inspection
+    logging.debug("Tick: {}".format(MessageToJson(data)))
+
+def on_connect():
+    # Subscribe to a list of instrument tokens (NIFTY and RELIANCE here).
+    kws.subscribe([110010002000001, 110010000002885])
+
+kws.set_on_message(on_ticks)
+kws.set_on_connect(on_connect)
+
+kws.start()
+```
 
 ## Instrument Manager
 
-Resolve symbol names to IDs (downloads ~140K instruments on first use).
+Downloads a gzipped JSON file (~140K instruments) from the configured URL and decompresses in memory:
+
+```python
+# Inside InstrumentManager.load():
+response = requests.get(url, timeout=30)       # download gzipped file
+decompressed = gzip.decompress(response.content)  # unzip in memory
+data = json.loads(decompressed)                # parse JSON
+_cache = {
+    f'{item["exchangeSegment"]}|{item["instrumentName"]}': item["instrumentId"]
+    for item in data
+}
+```
+
+Usage:
 
 ```python
 from blitzsdk.marketdata.instrument_manager import InstrumentManager
 
-InstrumentManager.load()  # downloads gzipped instrument list
+InstrumentManager.load()  # downloads + decompresses + caches
 instrument_id = InstrumentManager.resolve(symbol="NSECM|RELIANCE")
 ids = InstrumentManager.resolve_ids(["NSECM|RELIANCE", "NSECM|NIFTY"])
-count = InstrumentManager.count()  # 140295
 ```
 
-## Running Tests
+## Run tests
 
-```bash
-# Market Data API (9 tests)
-python tests\test_marketdata_api.py
-
-# Interactive API (9 tests)
+```sh
 python tests\test_interactive_api.py
-
-# Interactive WS listener (stays connected)
+python tests\test_marketdata_api.py
 python tests\test_interactive_ws.py
-
-# Market Data WS listener (stays connected)
 python tests\test_marketdata_ws.py
 ```
 
-Tests use `tests/test-config.json` for credentials. Update the JSON file to use your own app key and user ID.
+## Changelog
 
-## Error Handling
-
-```python
-from blitzsdk.common.exceptions import AuthenticationError, RequestError
-
-try:
-    client.get_orders()
-except AuthenticationError as e:
-    print(f"Login failed: {e}")
-except RequestError as e:
-    print(f"API error {e.status_code}: {e}")
-```
+[Check release notes](https://github.com/your-org/blitzsdk/releases)
