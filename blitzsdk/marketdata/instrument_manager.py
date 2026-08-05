@@ -1,8 +1,11 @@
 import requests
 import gzip
 import json
+import logging
 
 from ..common.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class InstrumentManager:
@@ -12,7 +15,11 @@ class InstrumentManager:
     @classmethod
     def load(cls, url: str | None = None):
         url = url or Config.INSTRUMENT_URL
-        response = requests.get(url, timeout=15)
+        logger.info("[INST] Downloading from %s", url)
+        response = requests.get(url, timeout=30, verify=False)
+        logger.info("[INST] Download response: %s (%s bytes)", response.status_code, len(response.content))
+        if response.status_code != 200:
+            raise RuntimeError(f"Instrument download failed ({response.status_code}): {response.text[:200]}")
         decompressed = gzip.decompress(response.content)
         data = json.loads(decompressed)
         cls._cache = {
@@ -20,6 +27,7 @@ class InstrumentManager:
             for item in data
         }
         cls._id_cache = {iid: name for name, iid in cls._cache.items()}
+        logger.info("[INST] Loaded %s instruments", len(cls._cache))
 
     @classmethod
     def resolve(cls, symbol: str | None = None, instrument_id: int | None = None) -> int:

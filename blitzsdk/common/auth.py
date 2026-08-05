@@ -1,10 +1,13 @@
-import requests
+import json
 import logging
 
 from .config import Config
 from .exceptions import AuthenticationError
+from .session import build_session
 
 logger = logging.getLogger(__name__)
+
+_SESSION = build_session()
 
 
 class AuthClient:
@@ -19,19 +22,19 @@ class AuthClient:
         headers = {"Content-Type": "application/json", "Accept": "*/*"}
         payload = {"appKey": self.app_key, "userId": self.user_id}
 
-        try:
-            response = requests.post(url, json=payload, headers=headers, verify=False, timeout=10)
-        except requests.exceptions.Timeout:
-            raise AuthenticationError("Server timeout. UAT server may be down.")
-        except requests.exceptions.ConnectionError:
-            raise AuthenticationError("Cannot connect to server.")
-        except requests.exceptions.RequestException as e:
-            raise AuthenticationError(f"Request failed: {e}")
+        logger.info("[AUTH] POST %s", url)
+        logger.debug("[AUTH] Payload: %s", json.dumps(payload))
 
+        try:
+            response = _SESSION.post(url, data=json.dumps(payload), headers=headers, timeout=10)
+        except Exception as e:
+            raise AuthenticationError(f"Login failed: {e}")
+
+        logger.info("[AUTH] Response: %s", response.status_code)
+        data = response.json()
+        logger.debug("[AUTH] Body: %s", json.dumps(data, default=str)[:500])
         if response.status_code != 200:
             raise AuthenticationError(f"Login failed ({response.status_code}): {response.text}")
-
-        data = response.json()
         if data.get("status") != "success":
             raise AuthenticationError(f"Login failed: {data.get('message', 'unknown')}")
 

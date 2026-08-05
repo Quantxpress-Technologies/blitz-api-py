@@ -1,8 +1,19 @@
 import json
 import sys
 import os
+import logging
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+_LOG_FILE = os.path.join(os.path.dirname(__file__), "marketdata_api.log")
+logging.basicConfig(
+    filename=_LOG_FILE,
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    filemode="w",
+)
+_log = logging.getLogger(__name__)
+print(f"Logging to {_LOG_FILE}")
 
 from blitzsdk import MarketDataApiClient
 from blitzsdk.marketdata.instrument_manager import InstrumentManager
@@ -12,7 +23,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["Connection"]
+_conn = _cfg["environments"][_cfg.get("active", "local")]
 _client: MarketDataApiClient | None = None
 
 
@@ -26,6 +37,8 @@ def _get_client():
 def _pp(data):
     raw = data.get("response_text", "")
     js = data.get("response_json")
+    _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
+    _log.info("response_json=%s", json.dumps(js, indent=2, default=str) if js is not None else raw)
     print(f"  status={data.get('status_code')} raw=({len(raw)} chars)")
     if js is not None:
         print(json.dumps(js, indent=2))
@@ -90,15 +103,15 @@ def run():
         InstrumentManager.load()
         print(f"       instruments loaded: {InstrumentManager.count()}")
 
-    # test("GetInstrumentById", test_get_instrument_by_id)
-    # test("GetInstrumentBySymbol", test_get_instrument_by_symbol)
-    # test("GetLTPByIds", test_get_ltp_by_ids)
-    # test("GetLTPByNames", test_get_ltp_by_names)
-    # test("GetOptionChain", test_get_option_chain)
-    # test("GetQuoteByIds", test_get_quote_by_ids)
+    test("GetInstrumentById", test_get_instrument_by_id)
+    test("GetInstrumentBySymbol", test_get_instrument_by_symbol)
+    test("GetLTPByIds", test_get_ltp_by_ids)
+    test("GetLTPByNames", test_get_ltp_by_names)
+    test("GetOptionChain", test_get_option_chain)
+    test("GetQuoteByIds", test_get_quote_by_ids)
     test("GetQuoteByNames", test_get_quote_by_names)
-    # test("GetHistoricalData", test_get_historical_data)
-    # test("InstrumentCount", test_instrument_count)
+    test("GetHistoricalData", test_get_historical_data)
+    test("InstrumentCount", test_instrument_count)
 
     print(f"  PASSED: {passed}   FAILED: {failed}")
     return failed
