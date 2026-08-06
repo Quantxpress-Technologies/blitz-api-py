@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "requests>=2.31.0",
-        "websocket-client>=1.7.0",
+        "websockets>=12.0",
         "protobuf>=4.25.0",
     ],
     python_requires=">=3.10",

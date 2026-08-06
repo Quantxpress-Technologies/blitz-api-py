@@ -16,7 +16,7 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 print(f"Logging to {_LOG_FILE}")
 
-from blitzsdk import InteractiveApiClient, MarketDataApiClient
+from blitzsdk import InteractiveApiClient
 from blitzsdk.interactive.models import OrderRequest
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
@@ -24,18 +24,18 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["environments"][_cfg.get("active", "local")]
+_conn = _cfg
 _client: InteractiveApiClient | None = None
 
 
-def _get_client():
+def get_client():
     global _client
     if _client is None:
         _client = InteractiveApiClient(app_key=_conn["AppKey"], user_id=_conn["UserId"])
     return _client
 
 
-def _pp(data):
+def print_response(data):
     raw = data.get("response_text", "")
     js = data.get("response_json")
     _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
@@ -45,62 +45,26 @@ def _pp(data):
         print(json.dumps(js, indent=2))
 
 
-_last_open_place_price = None
-
-def _place_open_order(client):
-    """Place a buy LIMIT below market so it stays open (won't fill). Returns (blitz_id, price)."""
-    global _last_open_place_price
-    try:
-        md = MarketDataApiClient(app_key=_conn["AppKey"], user_id=_conn["UserId"])
-        ltp_resp = md.get_ltp([_conn["DemoOrderInstrumentId"]])
-        js = ltp_resp.get("response_json", {})
-        ltp = _conn["DemoOrderPrice"]
-        if isinstance(js, dict):
-            for v in js.get("data", {}).values():
-                if isinstance(v, dict) and v.get("ltp"):
-                    ltp = v["ltp"]
-                    break
-        price = round(ltp * 0.95, 2)
-        _last_open_place_price = price
-        order = OrderRequest(
-            instrument_id=_conn["DemoOrderInstrumentId"],
-            symbol=_conn["DemoOrderSymbol"],
-            price=price,
-            client_id=_conn["DemoOrderClientId"],
-        )
-        resp = client.place_order(order)
-        js = resp.get("response_json", {})
-        if js.get("status") == "success":
-            data = js.get("data", {})
-            bid = data.get("blitzOrderId") or data.get("blitz_order_id")
-            return bid, price
-    except Exception as e:
-        print(f"       _place_open_order error: {e}")
-    return None, None
+_ORDER = next(i for i in _conn["Instruments"] if i.get("symbol"))
 
 
-def _place_demo_order(client):
-    """Alias for backward compat - places at configured price (may fill immediately)."""
-    try:
-        order = OrderRequest(
-            instrument_id=_conn["DemoOrderInstrumentId"],
-            symbol=_conn["DemoOrderSymbol"],
-            price=_conn["DemoOrderPrice"],
-            client_id=_conn["DemoOrderClientId"],
-        )
-        resp = client.place_order(order)
-        js = resp.get("response_json", {})
-        if js.get("status") == "success":
-            data = js.get("data", {})
-            return data.get("blitzOrderId") or data.get("blitz_order_id")
-    except Exception:
-        pass
-    return None
+def place_order():
+    """Place one order and return its blitz order id."""
+    order = OrderRequest(
+        instrument_id=_ORDER["id"],
+        symbol=_ORDER["symbol"],
+        price=_conn["DemoOrderPrice"],
+        client_id=_conn["ClientId"],
+    )
+    r = get_client().place_order(order)
+    js = r.get("response_json", {})
+    data = js.get("data", {}) if isinstance(js, dict) else {}
+    bid = data.get("blitzOrderId") or data.get("blitz_order_id")
+    return r, bid
 
 
 def run():
-    client = _get_client()
-    md_client = MarketDataApiClient(app_key=_conn["AppKey"], user_id=_conn["UserId"])
+    client = get_client()
     passed = 0
     failed = 0
 
@@ -114,71 +78,55 @@ def run():
             print(f"  [FAIL] {name}: {e}")
             failed += 1
 
-    print("--- All API Tests ---")
+    print("--- Interactive API Tests ---")
 
-    def test_get_orders():
-        r = client.get_orders()
-        _pp(r)
+    def get_orders():
+        print_response(client.get_orders())
 
-    def test_get_open_orders():
-        r = client.get_open_orders()
-        _pp(r)
+    def get_open_orders():
+        print_response(client.get_open_orders())
 
-    def test_get_positions():
-        r = client.get_positions()
-        _pp(r)
+    def get_positions():
+        print_response(client.get_positions())
 
-    def test_get_trades():
-        r = client.get_trades()
-        _pp(r)
+    def get_trades():
+        print_response(client.get_trades())
 
-    def test_place_order():
-        order = OrderRequest(
-            instrument_id=_conn["DemoOrderInstrumentId"],
-            symbol=_conn["DemoOrderSymbol"],
-            price=_conn["DemoOrderPrice"],
-            client_id=_conn["DemoOrderClientId"],
-        )
-        r = client.place_order(order)
-        _pp(r)
+    def get_statistics():
+        print_response(client.get_statistics())
 
-    def test_get_order_by_blitz_id():
-        blitz_id = _place_demo_order(client)
-        if blitz_id is None:
-            print("       skipping (no order placed)")
-            return
-        r = client.get_order_by_blitz_id(blitz_id)
-        _pp(r)
+    def api_place_order():
+        r, _ = place_order()
+        print_response(r)
 
-    def test_modify_order():
-        blitz_id, placed_price = _place_open_order(client)
-        if blitz_id is None:
-            print("       skipping (no order placed)")
-            return
-        modify_price = round(placed_price * 1.01, 2)  # 1% above placed price
-        r = client.modify_order({
-            "BlitzOrderId": blitz_id,
-            "ModifiedOrderQuantity": 1,
-            "Price": modify_price,
-            "OrderType": "LIMIT",
-            "InstrumentId": _conn["DemoOrderInstrumentId"],
-            "Symbol": _conn["DemoOrderSymbol"],
-            "DisclosedQuantity": 0,
-            "StopPrice": 0,
-            "TIF": "GFD",
-            "TiF_GTD_Date": time.strftime("%Y-%m-%d"),
-        })
-        _pp(r)
+    def get_order():
+        r, bid = place_order()
+        if bid:
+            print_response(client.get_order_by_blitz_id(bid))
 
-    def test_cancel_order():
-        blitz_id, placed_price = _place_open_order(client)
-        if blitz_id is None:
-            print("       skipping (no order placed)")
-            return
-        r = client.cancel_order(_conn["DemoOrderInstrumentId"], blitz_id)
-        _pp(r)
+    def modify_order():
+        r, bid = place_order()
+        if bid:
+            r = client.modify_order({
+                "BlitzOrderId": bid,
+                "ModifiedOrderQuantity": 1,
+                "Price": _conn["DemoOrderPrice"],
+                "OrderType": "LIMIT",
+                "InstrumentId": _ORDER["id"],
+                "Symbol": None,
+                "DisclosedQuantity": 0,
+                "StopPrice": 0,
+                "TIF": "GFD",
+                "TiF_GTD_Date": time.strftime("%Y-%m-%d"),
+            })
+            print_response(r)
 
-    def test_send_signals():
+    def cancel_order():
+        r, bid = place_order()
+        if bid:
+            print_response(client.cancel_order(_ORDER["id"], bid))
+
+    def send_signals():
         r = client.send_signals([{
             "SourceStrategy": "Bull8.AmberX1",
             "DestinationStrategy": "Matrix",
@@ -194,37 +142,18 @@ def run():
                 "InfoText": "Test signal",
             }]
         }])
-        _pp(r)
+        print_response(r)
 
-    def test_get_ltp():
-        r = md_client.get_ltp([_conn["DemoOrderInstrumentId"]])
-        _pp(r)
-
-    def test_get_quote():
-        r = md_client.get_quote([_conn["DemoOrderInstrumentId"]])
-        _pp(r)
-
-    def test_get_option_chain():
-        r = md_client.get_option_chain(symbol="NIFTY", expiry="2026-09-01")
-        _pp(r)
-
-    def test_get_historical_data():
-        r = md_client.get_historical_data(instrument=_conn["DemoOrderSymbol"], interval="D")
-        _pp(r)
-
-    # test("GetOrders", test_get_orders)
-    # test("GetOpenOrders", test_get_open_orders)
-    # test("GetPositions", test_get_positions)
-    # test("GetTrades", test_get_trades)
-    # test("PlaceOrder", test_place_order)
-    # test("GetOrderByBlitzId", test_get_order_by_blitz_id)
-    # test("ModifyOrder", test_modify_order)
-    # test("CancelOrder", test_cancel_order)
-    test("SendSignals", test_send_signals)
-    # test("GetLTP", test_get_ltp)
-    # test("GetQuote", test_get_quote)
-    # test("GetOptionChain", test_get_option_chain)
-    # test("GetHistoricalData", test_get_historical_data)
+    # test("GetOrders", get_orders)
+    # test("GetOpenOrders", get_open_orders)
+    # test("GetPositions", get_positions)
+    # test("GetTrades", get_trades)
+    # test("GetStatistics", get_statistics)
+    test("PlaceOrder", api_place_order)
+    # test("GetOrderByBlitzId", get_order)
+    # test("ModifyOrder", modify_order)
+    # test("CancelOrder", cancel_order)
+    # test("SendSignals", send_signals)
 
     print(f"  PASSED: {passed}   FAILED: {failed}")
     return failed

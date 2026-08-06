@@ -20,10 +20,7 @@ _config_path = find_config()
 _conn = {}
 if _config_path:
     with open(_config_path, encoding="utf-8") as f:
-        _raw = json.load(f)
-    _active = _raw.get("active", "local")
-    _envs = _raw.get("environments", {})
-    _conn = _envs.get(_active, {})
+        _conn = json.load(f)
 
 
 def get_config(key, env_var):
