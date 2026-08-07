@@ -27,7 +27,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["environments"][_cfg.get("active", "local")]
+_conn = _cfg
 
 running = True
 connect_count = 0
@@ -43,7 +43,7 @@ def run():
         user_id=_conn["UserId"],
     )
 
-    instrument_ids = _conn.get("InstrumentIds", [110010002000001, 110010000002885])
+    instrument_ids = [i["id"] for i in _conn["Instruments"]]
 
     print("--- Market Data WebSocket Tests ---")
 
@@ -54,7 +54,7 @@ def run():
         tick_count += 1
         msg = MessageToJson(data)
         _log.info("[TICK %s] %s", tick_count, msg)
-        print(f"  [TICK {tick_count}] {msg[:200]}")
+        print(f"  [TICK {tick_count}] {msg}")
 
     def on_connect():
         global connect_count

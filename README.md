@@ -50,10 +50,11 @@ try:
         order_type="LIMIT",
         product="MIS",
         tif="GFD",
+        gtd_date="2026-08-14",
         client_id="your_client_id",
     )
     resp = client.place_order(order)
-    blitz_id = resp["response_json"]["data"]["blitzOrderId"]
+    blitz_id = resp["data"]["blitzOrderId"]
     logging.info("Order placed. ID is: {}".format(blitz_id))
 except Exception as e:
     logging.info("Order placement failed: {}".format(e))

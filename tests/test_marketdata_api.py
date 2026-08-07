@@ -23,29 +23,28 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["environments"][_cfg.get("active", "local")]
+_conn = _cfg
 _client: MarketDataApiClient | None = None
 
 
-def _get_client():
+def get_client():
     global _client
     if _client is None:
         _client = MarketDataApiClient(app_key=_conn["AppKey"], user_id=_conn["UserId"])
     return _client
 
 
-def _pp(data):
-    raw = data.get("response_text", "")
-    js = data.get("response_json")
-    _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
-    _log.info("response_json=%s", json.dumps(js, indent=2, default=str) if js is not None else raw)
-    print(f"  status={data.get('status_code')} raw=({len(raw)} chars)")
-    if js is not None:
-        print(json.dumps(js, indent=2))
+def print_response(data):
+    if isinstance(data, dict) or isinstance(data, list):
+        _log.info("response=%s", json.dumps(data, indent=2, default=str))
+        print(json.dumps(data, indent=2, default=str))
+    else:
+        _log.info("response=%s", data)
+        print(data)
 
 
 def run():
-    client = _get_client()
+    client = get_client()
     passed = 0
     failed = 0
 
@@ -59,59 +58,62 @@ def run():
             print(f"  [FAIL] {name}: {e}")
             failed += 1
 
-    instruments = _conn.get("TestInstruments", ["NSECM|RELIANCE"])
-    instrument_id = _conn.get("TestInstrumentId", 110010000002885)
+    instruments = [i.get("symbol") for i in _conn["Instruments"] if i.get("symbol")]
+    instrument_ids = [i["id"] for i in _conn["Instruments"]]
+    instrument_id = instrument_ids[0]
+    InstrumentManager.load()
+    name_symbols = [InstrumentManager._id_cache[iid] for iid in instrument_ids]
     expiry = _conn.get("TestExpiry", "2026-07-07")
 
     print("--- Market Data API Tests ---")
 
-    def test_get_instrument_by_id():
+    def get_instrument_by_id():
         r = client.get_instrument_by_id(instrument_id)
-        _pp(r)
+        print_response(r)
 
-    def test_get_instrument_by_symbol():
-        r = client.get_instrument_by_symbol(instruments[0])
-        _pp(r)
+    def get_instrument_by_symbol():
+        r = client.get_instrument_by_symbol(name_symbols[0])
+        print_response(r)
 
-    def test_get_ltp_by_ids():
+    def get_ltp_by_ids():
         r = client.get_ltp([instrument_id])
-        _pp(r)
+        print_response(r)
 
-    def test_get_ltp_by_names():
-        ids = InstrumentManager.resolve_ids(instruments)
+    def get_ltp_by_names():
+        ids = InstrumentManager.resolve_ids(name_symbols)
         r = client.get_ltp(ids)
-        _pp(r)
+        print_response(r)
 
-    def test_get_option_chain():
+    def get_option_chain():
         r = client.get_option_chain("NIFTY", expiry)
-        _pp(r)
+        print_response(r)
 
-    def test_get_quote_by_ids():
+    def get_quote_by_ids():
         r = client.get_quote([instrument_id])
-        _pp(r)
+        print_response(r)
 
-    def test_get_quote_by_names():
-        ids = InstrumentManager.resolve_ids(instruments)
+    def get_quote_by_names():
+        ids = InstrumentManager.resolve_ids(name_symbols)
         r = client.get_quote(ids)
-        _pp(r)
+        print_response(r)
 
-    def test_get_historical_data():
+    def get_historical_data():
         r = client.get_historical_data("RELIANCE", "D")
-        _pp(r)
+        print_response(r)
 
-    def test_instrument_count():
+    def instrument_count():
         InstrumentManager.load()
         print(f"       instruments loaded: {InstrumentManager.count()}")
 
-    test("GetInstrumentById", test_get_instrument_by_id)
-    test("GetInstrumentBySymbol", test_get_instrument_by_symbol)
-    test("GetLTPByIds", test_get_ltp_by_ids)
-    test("GetLTPByNames", test_get_ltp_by_names)
-    test("GetOptionChain", test_get_option_chain)
-    test("GetQuoteByIds", test_get_quote_by_ids)
-    test("GetQuoteByNames", test_get_quote_by_names)
-    test("GetHistoricalData", test_get_historical_data)
-    test("InstrumentCount", test_instrument_count)
+    test("GetInstrumentById", get_instrument_by_id)
+    test("GetInstrumentBySymbol", get_instrument_by_symbol)
+    test("GetLTPByIds", get_ltp_by_ids)
+    test("GetLTPByNames", get_ltp_by_names)
+    test("GetOptionChain", get_option_chain)
+    test("GetQuoteByIds", get_quote_by_ids)
+    test("GetQuoteByNames", get_quote_by_names)
+    test("GetHistoricalData", get_historical_data)
+    test("InstrumentCount", instrument_count)
 
     print(f"  PASSED: {passed}   FAILED: {failed}")
     return failed

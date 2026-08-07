@@ -62,16 +62,9 @@ class BaseApiClient:
             return self.request(method, endpoint, payload, params, base_url, retries + 1)
 
         if response.status_code not in (200, 201):
-            text = response.text[:500]
-            raise RequestError(response.status_code, f"{method} {endpoint} failed", text)
+            raise RequestError(response.status_code, f"{method} {endpoint} failed")
 
         try:
-            parsed = response.json()
+            return response.json()
         except ValueError:
-            parsed = None
-        return {
-            "status_code": response.status_code,
-            "response_text": response.text,
-            "response_json": parsed,
-            "headers": dict(response.headers),
-        }
+            return response.text

@@ -23,7 +23,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 with open(CONFIG_PATH) as f:
     _cfg = json.load(f)
 
-_conn = _cfg["environments"][_cfg.get("active", "local")]
+_conn = _cfg
 
 connect_count = 0
 close_events = []
@@ -45,7 +45,7 @@ def run():
         mc = data.get("MessageCode", data.get("messageCode", "?"))
         msg = json.dumps(data, default=str)
         _log.info("[WS] code=%s %s", mc, msg)
-        print(f"  [WS] code={mc} {msg[:200]}")
+        print(f"  [WS] code={mc} {msg}")
 
     def on_connect():
         global connect_count
