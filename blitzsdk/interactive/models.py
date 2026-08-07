@@ -1,5 +1,4 @@
 import time
-from datetime import datetime, timedelta
 
 from ..common.config import Config
 
@@ -9,16 +8,16 @@ class OrderRequest:
         self,
         instrument_id: int,
         symbol: str,
-        quantity: int = 1,
-        price: float = 11,
-        order_side: str = "BUY",
-        order_type: str = "LIMIT",
-        product: str = "MIS",
-        tif: str = "GFD",
+        quantity: int,
+        price: float,
+        order_side: str,
+        order_type: str,
+        product: str,
+        tif: str,
+        gtd_date: str,
         client_id: str | None = None,
         disclosed_quantity: int = 0,
         stop_price: float = 0,
-        gtd_date: str | None = None,
     ):
         self.instrument_id = instrument_id
         self.symbol = symbol
@@ -28,10 +27,10 @@ class OrderRequest:
         self.order_type = order_type
         self.product = product
         self.tif = tif
+        self.gtd_date = gtd_date
         self.client_id = client_id or Config.CLIENT_ID
         self.disclosed_quantity = disclosed_quantity
         self.stop_price = stop_price
-        self.gtd_date = gtd_date or (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
     def to_dict(self):
         return {

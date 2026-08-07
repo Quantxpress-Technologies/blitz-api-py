@@ -4,8 +4,8 @@
   "ClientId": "Algo123",
 
   "AuthBaseUrl": "http://uat.quantxpress.com/api_gateway/v1/",
-  "InteractiveApiUrl": "http://uat.quantxpress.com/interactive/v1/api/v1",
-  "InteractiveWsUrl": "ws://uat.quantxpress.com/interactive/v1/ws",
+  "InteractiveApiUrl": "http://localhost:5294/api/v1",
+  "InteractiveWsUrl": "ws://localhost:5294/ws",
   "MarketDataWsUrl": "ws://uat.quantxpress.com/md-streaming/ws",
   "MarketDataApiUrl": "http://uat.quantxpress.com/md-api",
   "InstrumentGzUrl": "http://uat.quantxpress.com/v1/api/instruments/gz/download",

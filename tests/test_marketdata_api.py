@@ -35,13 +35,12 @@ def get_client():
 
 
 def print_response(data):
-    raw = data.get("response_text", "")
-    js = data.get("response_json")
-    _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
-    _log.info("response_json=%s", json.dumps(js, indent=2, default=str) if js is not None else raw)
-    print(f"  status={data.get('status_code')} raw=({len(raw)} chars)")
-    if js is not None:
-        print(json.dumps(js, indent=2))
+    if isinstance(data, dict) or isinstance(data, list):
+        _log.info("response=%s", json.dumps(data, indent=2, default=str))
+        print(json.dumps(data, indent=2, default=str))
+    else:
+        _log.info("response=%s", data)
+        print(data)
 
 
 def run():

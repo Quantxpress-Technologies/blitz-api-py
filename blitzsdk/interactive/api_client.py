@@ -29,6 +29,13 @@ class InteractiveApiClient(BaseApiClient):
     def get_statistics(self):
         return self.request("GET", "strategy/statistics")
 
+    def get_statistics_by_instance(self, strategy_name: str, strategy_instance_name: str):
+        params = {
+            "strategyName": strategy_name,
+            "strategyInstanceName": strategy_instance_name,
+        }
+        return self.request("GET", "strategy/statistics/instance", params=params)
+
     def place_order(self, order: OrderRequest | dict):
         data = order.to_dict() if isinstance(order, OrderRequest) else order
         return self.request("POST", "orders/placeOrder", payload=data)

@@ -36,13 +36,12 @@ def get_client():
 
 
 def print_response(data):
-    raw = data.get("response_text", "")
-    js = data.get("response_json")
-    _log.info("status=%s raw=(%s chars)", data.get("status_code"), len(raw))
-    _log.info("response_json=%s", json.dumps(js, indent=2, default=str) if js is not None else raw)
-    print(f"  status={data.get('status_code')} raw=({len(raw)} chars)")
-    if js is not None:
-        print(json.dumps(js, indent=2))
+    if isinstance(data, dict) or isinstance(data, list):
+        _log.info("response=%s", json.dumps(data, indent=2, default=str))
+        print(json.dumps(data, indent=2, default=str))
+    else:
+        _log.info("response=%s", data)
+        print(data)
 
 
 _ORDER = next(i for i in _conn["Instruments"] if i.get("symbol"))
@@ -53,11 +52,17 @@ def place_order():
     order = OrderRequest(
         instrument_id=_ORDER["id"],
         symbol=_ORDER["symbol"],
+        quantity=1,
         price=_conn["DemoOrderPrice"],
+        order_side="BUY",
+        order_type="LIMIT",
+        product="MIS",
+        tif="GFD",
+        gtd_date=time.strftime("%Y-%m-%d"),
         client_id=_conn["ClientId"],
     )
     r = get_client().place_order(order)
-    js = r.get("response_json", {})
+    js = r if isinstance(r, dict) else {}
     data = js.get("data", {}) if isinstance(js, dict) else {}
     bid = data.get("blitzOrderId") or data.get("blitz_order_id")
     return r, bid
@@ -94,6 +99,9 @@ def run():
 
     def get_statistics():
         print_response(client.get_statistics())
+
+    def get_statistics_by_instance():
+        print_response(client.get_statistics_by_instance("Manual Trading", "NSECM|RELIANCE"))
 
     def api_place_order():
         r, _ = place_order()
@@ -149,6 +157,7 @@ def run():
     # test("GetPositions", get_positions)
     # test("GetTrades", get_trades)
     # test("GetStatistics", get_statistics)
+    # test("GetStatisticsByInstance", get_statistics_by_instance)
     test("PlaceOrder", api_place_order)
     # test("GetOrderByBlitzId", get_order)
     # test("ModifyOrder", modify_order)

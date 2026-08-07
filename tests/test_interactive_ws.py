@@ -45,7 +45,7 @@ def run():
         mc = data.get("MessageCode", data.get("messageCode", "?"))
         msg = json.dumps(data, default=str)
         _log.info("[WS] code=%s %s", mc, msg)
-        print(f"  [WS] code={mc} {msg[:200]}")
+        print(f"  [WS] code={mc} {msg}")
 
     def on_connect():
         global connect_count
