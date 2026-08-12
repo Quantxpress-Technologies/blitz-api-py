@@ -1,19 +1,20 @@
-{
-  "AppKey": "CPXotUwWdlIpgJbYrguSnVyu05IZaws1HjwKaXKNQ",
-  "UserId": "Algo123",
-  "ClientId": "Algo123",
 
-  "AuthBaseUrl": "http://uat.quantxpress.com/api_gateway/v1/",
-  "InteractiveApiUrl": "http://localhost:5294/api/v1",
-  "InteractiveWsUrl": "ws://localhost:5294/ws",
-  "MarketDataWsUrl": "ws://uat.quantxpress.com/md-streaming/ws",
-  "MarketDataApiUrl": "http://uat.quantxpress.com/md-api",
-  "InstrumentGzUrl": "http://uat.quantxpress.com/v1/api/instruments/gz/download",
+{
+  "AppKey": "dtuqSORnBhp3hstbJNskJFl9P2TSGozfBLjitl8VGc",
+  "UserId": "Prateek123",
+  "ClientId": "Prateek123",
+
+  "AuthBaseUrl": "https://uat.bull8.ai:7443/api_gateway/v1",
+  "InteractiveApiUrl": "https://uat.bull8.ai:7443/api_interactive/api/v1/",
+  "InteractiveWsUrl": "wss://uat.bull8.ai:7443/api_interactive/ws",
+  "MarketDataWsUrl": "wss://uat.bull8.ai:7443/md-streaming/ws",
+  "MarketDataApiUrl": "https://uat.bull8.ai:7443/md-api",
+  "InstrumentGzUrl": "https://uat.bull8.ai:7443/v1/api/instruments/gz/download",
 
   "Instruments": [
-    { "id": 110010000014366, "symbol": "IDEA" }
+    { "id": 110010000002885, "symbol": "RELIANCE" }
   ],
 
   "TestExpiry": "2026-09-01",
-  "DemoOrderPrice": 11
+  "DemoOrderPrice": 1330
 }
