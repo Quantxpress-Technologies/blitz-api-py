@@ -18,6 +18,7 @@ print(f"Logging to {_LOG_FILE}")
 
 from blitzsdk import InteractiveApiClient
 from blitzsdk.interactive.models import OrderRequest
+from blitzsdk.marketdata.instrument_manager import InstrumentManager
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "test-config.json")
 
@@ -47,11 +48,23 @@ def print_response(data):
 _ORDER = next(i for i in _conn["Instruments"] if i.get("symbol"))
 
 
+def resolve_instrument_id(symbol: str) -> int:
+    """Search the gz instrument list for a symbol and return its instrument id."""
+    if not InstrumentManager._cache:
+        InstrumentManager.load()
+    full = f"NSECM|{symbol}" if "|" not in symbol else symbol
+    instrument_id = InstrumentManager.resolve(symbol=full)
+    _log.info("[INST] Resolved %s -> %s", full, instrument_id)
+    print(f"  [INFO] Resolved {full} -> {instrument_id}")
+    return instrument_id
+
+
 def place_order():
     """Place one order and return its blitz order id."""
+    instrument_id = resolve_instrument_id(_ORDER["symbol"])
     order = OrderRequest(
-        instrument_id=_ORDER["id"],
-        symbol=_ORDER["symbol"],
+        instrument_id=instrument_id,
+        symbol=f"NSECM|{_ORDER['symbol']}",
         quantity=1,
         price=_conn["DemoOrderPrice"],
         order_side="BUY",
@@ -101,7 +114,7 @@ def run():
         print_response(client.get_statistics())
 
     def get_statistics_by_instance():
-        print_response(client.get_statistics_by_instance("Manual Trading", "NSECM|RELIANCE"))
+        print_response(client.get_statistics_by_instance("Copy Trade", "Matrix"))
 
     def api_place_order():
         r, _ = place_order()
@@ -143,9 +156,9 @@ def run():
             "GlobalAction": "Signal",
             "Instruments": [{
                 "ExchangeSegment": "NSEFO",
-                "InstrumentName": "NIFTY10FEB2625550PE",
+                "InstrumentName": "NIFTY11AUG2622400PE",
                 "Action": "ENTERLONG",
-                "Lot": "27",
+                "Lot": "1",
                 "TimeStamp": time.strftime("%d-%m-%Y %H:%M:%S"),
                 "InfoText": "Test signal",
             }]
@@ -154,11 +167,13 @@ def run():
 
     # test("GetOrders", get_orders)
     # test("GetOpenOrders", get_open_orders)
+    # test("GetOrders", get_orders)
+    # test("GetOpenOrders", get_open_orders)
     # test("GetPositions", get_positions)
     # test("GetTrades", get_trades)
     # test("GetStatistics", get_statistics)
-    # test("GetStatisticsByInstance", get_statistics_by_instance)
-    test("PlaceOrder", api_place_order)
+    test("GetStatisticsByInstance", get_statistics_by_instance)
+    # test("PlaceOrder", api_place_order)
     # test("GetOrderByBlitzId", get_order)
     # test("ModifyOrder", modify_order)
     # test("CancelOrder", cancel_order)

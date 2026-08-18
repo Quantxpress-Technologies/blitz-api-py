@@ -31,10 +31,16 @@ class AuthClient:
             raise AuthenticationError(f"Login failed: {e}")
 
         logger.info("[AUTH] Response: %s", response.status_code)
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception:
+            data = None
+        if response.status_code != 200 or data is None:
+            print("Api Server is not started")
+            raise AuthenticationError(
+                f"Login failed ({response.status_code}): {response.text}"
+            )
         logger.debug("[AUTH] Body: %s", json.dumps(data, default=str)[:500])
-        if response.status_code != 200:
-            raise AuthenticationError(f"Login failed ({response.status_code}): {response.text}")
         if data.get("status") != "success":
             raise AuthenticationError(f"Login failed: {data.get('message', 'unknown')}")
 

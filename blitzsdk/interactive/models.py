@@ -46,5 +46,5 @@ class OrderRequest:
             "ClientId": self.client_id,
             "TiF_GTD_Date": self.gtd_date,
             "InstrumentId": self.instrument_id,
-            "Symbol": None,
+            "Symbol": self.symbol,
         }
