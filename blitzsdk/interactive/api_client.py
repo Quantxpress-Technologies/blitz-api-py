@@ -14,6 +14,12 @@ class InteractiveApiClient(BaseApiClient):
     def get_orders(self):
         return self.request("GET", "orders")
 
+    def get_holdings(self):
+        return self.request("GET", "portfolio/holdings")
+
+    def get_profile(self):
+        return self.request("GET", "profile")
+
     def get_open_orders(self):
         return self.request("GET", "orders/openOrders")
 
@@ -25,6 +31,9 @@ class InteractiveApiClient(BaseApiClient):
 
     def get_trades(self):
         return self.request("GET", "trades")
+
+    def get_trades_by_blitz_id(self, blitz_id: int):
+        return self.request("GET", f"trades/{blitz_id}")
 
     def get_statistics(self):
         return self.request("GET", "strategy/statistics")
@@ -49,3 +58,7 @@ class InteractiveApiClient(BaseApiClient):
 
     def send_signals(self, signals: list):
         return self.request("POST", "signals", payload=signals)
+
+    def logout(self, session_id=None):
+        payload = None if session_id is None else {"sessionId": session_id}
+        return self.request("POST", "session/logout", payload=payload)

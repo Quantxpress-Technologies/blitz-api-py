@@ -18,9 +18,11 @@ class OrderRequest:
         client_id: str | None = None,
         disclosed_quantity: int = 0,
         stop_price: float = 0,
+        exchange_instrument_id: int | None = None,
     ):
         self.instrument_id = instrument_id
         self.symbol = symbol
+        self.exchange_instrument_id = exchange_instrument_id
         self.quantity = quantity
         self.price = price
         self.order_side = order_side
@@ -46,5 +48,6 @@ class OrderRequest:
             "ClientId": self.client_id,
             "TiF_GTD_Date": self.gtd_date,
             "InstrumentId": self.instrument_id,
+            "ExchangeInstrumentId": self.exchange_instrument_id,
             "Symbol": self.symbol,
         }

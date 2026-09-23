@@ -43,7 +43,7 @@ class BaseApiClient:
             response = _SESSION.request(
                 method, url,
                 data=json.dumps(payload) if payload is not None else None,
-                params=params, headers=self.headers(), timeout=15
+                params=params, headers=self.headers(), timeout=60
             )
         except requests.exceptions.ConnectionError as e:
             logger.error("[REQ] ConnectionError: %s", e)
