@@ -19,10 +19,12 @@ class OrderRequest:
         disclosed_quantity: int = 0,
         stop_price: float = 0,
         exchange_instrument_id: int | None = None,
+        exchange_segment: str | None = None,
     ):
         self.instrument_id = instrument_id
         self.symbol = symbol
         self.exchange_instrument_id = exchange_instrument_id
+        self.exchange_segment = exchange_segment
         self.quantity = quantity
         self.price = price
         self.order_side = order_side
@@ -50,4 +52,5 @@ class OrderRequest:
             "InstrumentId": self.instrument_id,
             "ExchangeInstrumentId": self.exchange_instrument_id,
             "Symbol": self.symbol,
+            "ExchangeSegment": self.exchange_segment,
         }

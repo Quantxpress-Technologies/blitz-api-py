@@ -234,7 +234,15 @@ python tests\test_interactive_api.py
 python tests\test_marketdata_api.py
 python tests\test_interactive_ws.py
 python tests\test_marketdata_ws.py
+python tests\test_interactive_ws_multi.py   # WS multi-connection test case
 ```
+
+`test_interactive_ws_multi.py` verifies order-response routing across multiple
+WebSocket connections: same-user takeover (only the newest connection receives),
+single-connected-session delivery, and per-user isolation. For the two-user
+isolation scenario add `AppKey2`/`UserId2`/`ClientId2` to `tests/test-config.json`
+(or set `BLITZ_APP_KEY_2`/`BLITZ_USER_ID_2`/`BLITZ_CLIENT_ID_2`); it is skipped
+otherwise.
 
 ## Changelog
 
