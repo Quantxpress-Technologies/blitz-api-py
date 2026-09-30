@@ -1,0 +1,705 @@
+{
+  "info": {
+    "_postman_id": "blitzconnect-all-001",
+    "name": "QX BlitzConnect - All APIs",
+    "description": "BlitzConnect REST collection: Authentication, Orders, Portfolio, Positions, Trades, Profile, Session, Signals, Strategy Statistics and Market Data.\n\nBEFORE YOU RUN\n0. Set {{appKey}} and {{userId}} - both ship blank so no secret is committed. Retarget any environment by changing {{baseURL}} alone; every other base URL is derived from it.\n\nHOW TO USE:\n1. Run '1.1 Login' first - it saves the JWT into {{authToken}} automatically.\n2. All other requests use Bearer {{authToken}} (set at collection level).\n3. Note the Market Data folder uses its own base URLs ({{mdApiBaseUrl}} and {{instrumentBaseUrl}}), not {{apiBaseUrl}}.\n\nWEBSOCKETS ARE NOT IN THIS COLLECTION - AND CANNOT BE.\nA Postman v2.1 collection cannot hold WebSocket requests alongside HTTP requests, and Postman cannot export WebSocket requests in v2.1 JSON at all. Any WebSocket entry in a v2.1 file always imports back as a plain HTTP GET, which is exactly what you would have seen in the folders that used to be numbered 10 and 11. Testing lives in a script instead:\n\n    python WebSocket-Test-Script.py --collection BlitzConnect.postman_collection.json\n\nIt reads the variables from this file, logs in, and exercises both sockets:\n  - Interactive   {{WsBaseUrl}}/api_interactive/ws?access_token=<JWT>\n    order, trade, position and statistics events as plain JSON. Sends a\n    plain-text 'ping' every 30s to keep the connection alive.\n  - Market Data   {{WsBaseUrl}}/md-streaming/ws?key=<JWT>\n    live ticks as base64-encoded protobuf. Note the parameter is key=,\n    not access_token=.\n\nKNOWN SERVER-SIDE ISSUE\n'10.5 Option Chain' returns HTTP 400 'Instrument not found for symbol NSECM|NIFTY' on UAT. This is a backend fault, reproduced on more than one environment - not a client or payload error. Confirm the expiry is current before assuming your own request shape is wrong.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "type": "string",
+        "value": "{{authToken}}"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "appKey",
+      "value": "",
+      "type": "string",
+      "description": "SECRET. Left blank on purpose - never commit a real key to a shared collection. Paste your own before running 1.1 Login, or supply it at runtime."
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string",
+      "description": "Your userId / clientId. Required by 1.1 Login. Fill this in."
+    },
+    {
+      "key": "baseURL",
+      "value": "https://uat.bull8.ai:7443",
+      "type": "string",
+      "description": "Single host for every service. Change only this to retarget UAT/prod/local - all base URLs below are derived from it. For local dev use http://localhost:5294 and set apiBaseUrl to {{baseURL}}/api/v1."
+    },
+    {
+      "key": "gatewayBaseUrl",
+      "value": "{{baseURL}}/api_gateway/v1",
+      "type": "string",
+      "description": "Auth Gateway. Issues the JWT at POST /api/app_login with {appKey, userId}."
+    },
+    {
+      "key": "apiBaseUrl",
+      "value": "{{baseURL}}/api_interactive/api/v1",
+      "type": "string",
+      "description": "Blitz-API (Interactive REST)."
+    },
+    {
+      "key": "WsBaseUrl",
+      "value": "wss://uat.bull8.ai:7443",
+      "type": "string",
+      "description": "WebSocket origin, same host as {{baseURL}} but with wss. Interactive is /api_interactive/ws?access_token=<JWT>; Market Data is /md-streaming/ws?key=<JWT>."
+    },
+    {
+      "key": "wsHost",
+      "value": "uat.bull8.ai:7443",
+      "type": "string",
+      "description": "Host part of {{WsBaseUrl}} only - no scheme, no port inside the path. WebSocket-Test-Script.py joins this with wsScheme, so keep them separate."
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string",
+      "description": "Raw JWT - populated by the Login request test script"
+    },
+    {
+      "key": "instrumentId",
+      "value": "110010000002885",
+      "type": "string",
+      "description": "RELIANCE on NSE. Market Data subscribe takes a numeric instrument id."
+    },
+    {
+      "key": "blitzOrderId",
+      "value": "215110030330000004",
+      "type": "string"
+    },
+    {
+      "key": "strategyName",
+      "value": "Copy Trade",
+      "type": "string"
+    },
+    {
+      "key": "strategyInstanceName",
+      "value": "Matrix",
+      "type": "string"
+    },
+    {
+      "key": "wsScheme",
+      "value": "wss",
+      "description": "Use 'ws' only for a local non-TLS server such as http://localhost:5294."
+    },
+    {
+      "key": "mdApiBaseUrl",
+      "value": "{{baseURL}}/md-api",
+      "description": "Market Data REST base. Note this is a different service from the Interactive API."
+    },
+    {
+      "key": "instrumentBaseUrl",
+      "value": "{{baseURL}}/v1/api/instruments",
+      "description": "Instrument master, a different base again from /md-api."
+    },
+    {
+      "key": "instrumentGzUrl",
+      "value": "{{baseURL}}/v1/api/instruments/gz/download",
+      "description": "Compressed full instrument master. Not a JSON REST endpoint, so it has no request in this collection."
+    },
+    {
+      "key": "instrumentSymbol",
+      "value": "NSECM:IDEA",
+      "description": "Symbol lookup format is EXCHANGE_SEGMENT:SYMBOL. A bare symbol like IDEA returns 204 with no content."
+    },
+    {
+      "key": "expiryDate",
+      "value": "2026-10-01",
+      "description": "Option chain expiry, YYYY-MM-DD. Must be an expiry that actually has listed strikes."
+    },
+    {
+      "key": "historicalSymbol",
+      "value": "IDEA",
+      "description": "Symbol for historicalData."
+    },
+    {
+      "key": "historicalInterval",
+      "value": "D",
+      "description": "Candle interval. D = daily."
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "1.1 Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('authToken', json.data.accessToken);",
+                  "    console.log('Token saved (' + json.data.accessToken.length + ' chars).');",
+                  "} else {",
+                  "    throw new Error('Login failed: ' + pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appKey\": \"{{appKey}}\",\n  \"userId\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/app_login",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["api", "app_login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Orders",
+      "item": [
+        {
+          "name": "2.1 Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Get Open Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/openOrders",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "openOrders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Get Order By BlitzOrderId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{blitzOrderId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{blitzOrderId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Place Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json && json.blitzOrderId) {",
+                  "    pm.collectionVariables.set('blitzOrderId', String(json.blitzOrderId));",
+                  "    console.log('BOID saved: ' + json.blitzOrderId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correlationOrderId\": \"postman-{{$timestamp}}\",\n  \"quantity\": 1,\n  \"product\": \"MIS\",\n  \"tif\": \"GFD\",\n  \"price\": 11,\n  \"orderType\": \"LIMIT\",\n  \"symbol\": \"IDEA\",\n  \"exchangeSegment\": \"NSEFO\",\n  \"orderSide\": \"BUY\",\n  \"disclosedQuantity\": 0,\n  \"stopPrice\": 0,\n  \"clientId\": \"{{userId}}\",\n  \"tiF_GTD_Date\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/placeOrder",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "placeOrder"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Modify Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blitzOrderId\": {{blitzOrderId}},\n  \"modifiedOrderQuantity\": 2,\n  \"price\": 11.01,\n  \"orderType\": \"LIMIT\",\n  \"symbol\": \"IDEA\",\n  \"exchangeSegment\": \"NSEFO\",\n  \"disclosedQuantity\": 0,\n  \"stopPrice\": 0,\n  \"tif\": \"GFD\",\n  \"tiF_GTD_Date\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/modifyOrder",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "modifyOrder"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.6 Cancel Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/cancelOrder?instrumentId={{instrumentId}}&exchangeSegment=NSECM&blitzOrderId={{blitzOrderId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "cancelOrder"],
+              "query": [
+                {
+                  "key": "instrumentId",
+                  "value": "{{instrumentId}}"
+                },
+                {
+                  "key": "exchangeSegment",
+                  "value": "NSECM",
+                  "description": "instrumentId 110010000014366 (IDEA) is on NSECM, not NSEFO"
+                },
+                {
+                  "key": "symbol",
+                  "value": "IDEA",
+                  "disabled": true
+                },
+                {
+                  "key": "blitzOrderId",
+                  "value": "{{blitzOrderId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Portfolio",
+      "item": [
+        {
+          "name": "3.1 Get Holdings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/portfolio/holdings",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["portfolio", "holdings"]
+            },
+            "description": "Holdings - the portfolio snapshot behind the app's Holdings screen.\n\n> **Not currently available in UAT.** Present in the server source and the SDK, but the deployed UAT build returns an empty `404` for `/portfolio/holdings`. Pending deployment."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Positions",
+      "item": [
+        {
+          "name": "4.1 Get Positions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/positions",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["positions"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Trades",
+      "item": [
+        {
+          "name": "5.1 Get Trades",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/trades",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["trades"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Get Trades By BlitzOrderId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/trades/{{blitzOrderId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["trades", "{{blitzOrderId}}"]
+            },
+            "description": "Trades belonging to one order.\n\n> **Not currently available in UAT.** This route exists in the server source and in the SDK, but the deployed UAT build returns an empty `404` for it - including for a non-numeric id, which is the signature of no matching route rather than a bad parameter. Treat it as pending deployment rather than a collection error."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Profile",
+      "item": [
+        {
+          "name": "6.1 Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/profile",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["profile"]
+            },
+            "description": "Account profile and funds.\n\n> **Not currently available in UAT.** Present in the server source and the SDK, but the deployed UAT build returns an empty `404` for `/profile`. Pending deployment."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Session",
+      "item": [
+        {
+          "name": "7.1 Logout",
+          "description": "Revokes session(s) and blacklists the current token. After this the token is unusable - run 1.1 Login again.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/session/logout",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["session", "logout"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Signals",
+      "item": [
+        {
+          "name": "8.1 Send Signals",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"sourceStrategy\": \"Bull8.AmberX1\",\n    \"destinationStrategy\": \"Matrix\",\n    \"sourceSID\": \"Bull8_SINGLE_Matrix\",\n    \"instanceRunningMode\": \"Started\",\n    \"globalAction\": \"Signal\",\n    \"instruments\": [\n      {\n        \"exchangeSegment\": \"NSEFO\",\n        \"instrumentName\": \"NIFTY10FEB2625550PE\",\n        \"action\": \"ENTERLONG\",\n        \"lot\": \"27\",\n        \"timeStamp\": \"28-07-2026 09:21:00\",\n        \"infoText\": \"Test signal\"\n      }\n    ]\n  }\n]"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/signals",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["signals"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Strategy Statistics",
+      "item": [
+        {
+          "name": "9.1 Get Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/strategy/statistics",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["strategy", "statistics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9.2 Get Statistics By Instance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/strategy/statistics/instance?strategyName={{strategyName}}&strategyInstanceName={{strategyInstanceName}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["strategy", "statistics", "instance"],
+              "query": [
+                {
+                  "key": "strategyName",
+                  "value": "{{strategyName}}"
+                },
+                {
+                  "key": "strategyInstanceName",
+                  "value": "{{strategyInstanceName}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Market Data",
+      "description": "Market Data REST - instrument master and live/historical pricing. This is a **separate service** from the Interactive API: it uses `{{mdApiBaseUrl}}` for pricing and `{{instrumentBaseUrl}}` for instrument lookups, not `{{apiBaseUrl}}`. Same Bearer token and same `1.1 Login`.\n\nFor streaming prices instead of polling, use `WebSocket-Test-Script.py` - see the collection description for why streaming is not in Postman.",
+      "item": [
+        {
+          "name": "10.1 Instrument Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{instrumentBaseUrl}}/{{instrumentId}}",
+              "host": ["{{instrumentBaseUrl}}"],
+              "path": ["{{instrumentId}}"]
+            },
+            "description": "Full instrument master record by numeric id: `instrumentId`, `symbol`, `ticker`, `exchangeSegment`, `instrumentType`, `lotSize`, `tickSize`, `freezeQty`, `isin`, price band, and OHLC + `ltp`.\n\nVerified in UAT - returns HTTP 200."
+          },
+          "response": []
+        },
+        {
+          "name": "10.2 Instrument Details by Symbol",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{instrumentBaseUrl}}/{{instrumentSymbol}}",
+              "host": ["{{instrumentBaseUrl}}"],
+              "path": ["{{instrumentSymbol}}"]
+            },
+            "description": "Same record, looked up by symbol.\n\n**The path segment must be `EXCHANGE_SEGMENT:SYMBOL`** - for example `NSECM:IDEA`. This was verified in UAT: a bare `IDEA` returns **HTTP 204 with an empty body**, not an error, which is easy to mistake for success. `NSEFO:IDEA` and `NSE:IDEA` also return 204; the segment has to match the instrument's own record.\n\nThe Python SDK hides this by accepting `NSECM|IDEA` and rewriting `|` to `:` for you."
+          },
+          "response": []
+        },
+        {
+          "name": "10.3 LTP (Last Traded Price)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mdApiBaseUrl}}/marketfeed/ltp",
+              "host": ["{{mdApiBaseUrl}}"],
+              "path": ["marketfeed", "ltp"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"InstrumentIds\": [{{instrumentId}}]\n}"
+            },
+            "description": "Last traded price for one or more instruments. Cheapest way to smoke-test connectivity.\n\nResponse keys are **stringified instrument ids**: `{\"data\":{\"110010000002885\":{\"instrumentId\":...,\"ltp\":13.02}}}`.\n\nVerified in UAT - returns HTTP 200."
+          },
+          "response": []
+        },
+        {
+          "name": "10.4 Market Quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mdApiBaseUrl}}/marketfeed/quote",
+              "host": ["{{mdApiBaseUrl}}"],
+              "path": ["marketfeed", "quote"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"InstrumentIds\": [{{instrumentId}}]\n}"
+            },
+            "description": "Full depth quote: `ltp`, `ltq`, `atp`, `vtt`, `tbq`, `tsq`, `oi`, OHLC, and five levels each of `bidLevel` and `askLevel` (index, price, quantity, orders).\n\nVerified in UAT - returns HTTP 200."
+          },
+          "response": []
+        },
+        {
+          "name": "10.5 Option Chain",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mdApiBaseUrl}}/marketfeed/optionchain",
+              "host": ["{{mdApiBaseUrl}}"],
+              "path": ["marketfeed", "optionchain"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Symbol\": \"{{instrumentSymbol}}\",\n  \"ExpiryDate\": \"{{expiryDate}}\",\n  \"ExchangeSegment\": 1,\n  \"InstrumentId\": {{instrumentId}}\n}"
+            },
+            "description": "All strikes for one underlying and expiry.\n\n**`ExpiryDate` is required** - omitting it returns HTTP 400 with `{\"errors\":{\"ExpiryDate\":[\"The ExpiryDate field is required.\"]}}`.\n\n> **This endpoint does not currently return 200 in UAT.** Every symbol form was tried against a live instrument list (145,297 instruments, with RELIANCE and NIFTY options listed to 2026-12-29): bare symbol, `NSECM:SYMBOL`, `NSEFO:SYMBOL`, both `optionchain` and `optionChain` path casings, camelCase and PascalCase bodies, with and without `InstrumentId`. All return HTTP 400 `Instrument not found for symbol <x>`. Routing and model validation clearly work, so the failure is in the server's symbol resolution rather than the request shape - worth raising with the backend. The C# SDK works around it by retrying the other path casing, which also did not help.\n\nThe body below is the shape the SDK and the server's own tests use."
+          },
+          "response": []
+        },
+        {
+          "name": "10.6 Historical Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mdApiBaseUrl}}/marketfeed/historicalData",
+              "host": ["{{mdApiBaseUrl}}"],
+              "path": ["marketfeed", "historicalData"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Instrument\": \"{{historicalSymbol}}\",\n  \"interval\": \"{{historicalInterval}}\"\n}"
+            },
+            "description": "OHLCV candles, newest first. Note the mixed casing in the field names: `Instrument` is capitalised, `interval` is **lower-case**. ASP.NET binds case-insensitively so both work, but match the SDK to avoid surprises.\n\n`timestamp` comes back as `\"30-09-2026 00:00:00\"` - `dd-MM-yyyy`, not ISO.\n\nVerified in UAT - returns HTTP 200."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
